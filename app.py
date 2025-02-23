@@ -149,7 +149,14 @@ def haxx():
     our_dir = mkdtemp(mac.hex(), None, WILBRAND_WRITEDIR)
     wilbrand_res = subprocess.run([WILBRAND_EXE.absolute(), mac.hex(), f"{timestamp:x}", template, our_dir])
     if wilbrand_res.returncode != 0:
-        return _index("FIXME: wilbrand returns {}".format(wilbrand_res.returncode))
+        app.logger.error("wilbrand cli error %d. mac %s ts %s ver %s dir %s",
+            wilbrand_res.returncode,
+            mac.hex(),
+            f"{timestamp:x}",
+            template,
+            our_dir,
+        )
+        return _index("Internal Error: {}. Try again.".format(wilbrand_res.returncode))
     zipdata = make_wilbrand_zip(our_dir, bundle)
     shutil.rmtree(our_dir)
     app.logger.info(
