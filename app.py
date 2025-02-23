@@ -22,15 +22,7 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-TEMPLATES = {
-    "U": "templateU.bin",
-    "E": "templateE.bin",
-    "J": "templateJ.bin",
-    "K": "templateK.bin",
-}
-
 BUNDLEBASE = os.path.join(app.root_path, "bundle")
-
 
 class RequestFormatter(logging.Formatter):
     def format(self, record):
@@ -60,7 +52,7 @@ if not app.debug:
     app.logger.warning("Starting...")
 
 
-def count_unique_letterbombs(path="./log/info.log"):
+def count_unique_wilbrands(path="./log/info.log"):
     global counter_cache
     if (datetime.now() - counter_cache[0]).total_seconds() < COUNT_CACHE_AGE:
         return counter_cache[1]
@@ -68,7 +60,7 @@ def count_unique_letterbombs(path="./log/info.log"):
     with open(path) as logfile:
         for line in logfile.readlines():
             try:
-                loc = line.find("LetterBombed")
+                loc = line.find("Wilbranded")
                 if loc == -1:
                     continue
                 mac = line[loc:].split(" ")[1]
@@ -82,7 +74,7 @@ def count_unique_letterbombs(path="./log/info.log"):
 
 def _index(error=None):
     rs = make_response(
-        render_template("index.html", region="U", error=error, num_lb=count_unique_letterbombs())
+        render_template("index.html", region="U", error=error, num_lb=count_unique_wilbrands())
     )
     rs.headers["Expires"] = "Thu, 01 Dec 1983 20:00:00 GMT"
     return rs
@@ -93,10 +85,12 @@ def _index(error=None):
 def index():
     return _index()
 
-
+from pprint import pprint
 @app.route("/haxx", methods=["POST"])
-@limiter.limt("3/minute")
+@limiter.limit("3/minute")
 def haxx():
+    pprint(request.environ)
+    pprint(request.form)
     OUI_LIST = [
         bytes.fromhex(i)
         for i in open(os.path.join(app.root_path, "oui_list.txt")).read().split("\n")
@@ -107,7 +101,7 @@ def haxx():
     timestamp = delta.days * 86400 + delta.seconds
     try:
         mac = bytes((int(request.form[i], 16)) for i in "abcdef")
-        template = TEMPLATES[request.form["region"]]
+        template = "{}{}".format(request.form["version"], request.form["region"])
         bundle = "bundle" in request.form
     except:
         return _index("Invalid input.")
@@ -132,49 +126,21 @@ def haxx():
         )
         return _index("The exploit will only work if you enter your Wii's MAC address.")
 
-    key = hashlib.sha1(mac + b"\x75\x79\x79").digest()
-    blob = bytearray(open(os.path.join(app.root_path, template), "rb").read())
-    blob[0x08:0x10] = key[:8]
-    blob[0xB0:0xC4] = bytes(20)
-    blob[0x7C:0x80] = struct.pack(">I", timestamp)
-    blob[0x80:0x8A] = b"%010d" % timestamp
-    blob[0xB0:0xC4] = hmac.new(key[8:], bytes(blob), hashlib.sha1).digest()
-
-    path = "private/wii/title/HAEA/%s/%s/%04d/%02d/%02d/%02d/%02d/HABA_#1/txt/%08X.000" % (
-        key[:4].hex().upper(),
-        key[4:8].hex().upper(),
-        dt.year,
-        dt.month - 1,
-        dt.day,
-        dt.hour,
-        dt.minute,
-        timestamp,
-    )
-
-    zipdata = BytesIO()
-    zip = zipfile.ZipFile(zipdata, "w")
-    zip.writestr(path, blob)
-    BUNDLE = [
-        (name, os.path.join(BUNDLEBASE, name)) for name in os.listdir(BUNDLEBASE) if not name.startswith(".")
-    ]
-    if bundle:
-        for name, path in BUNDLE:
-            zip.write(path, name)
-    zip.close()
 
     app.logger.info(
-        "LetterBombed %s at %d ver %s bundle %r",
+        "Wilbranded %s at %d ver %s bundle %r",
         mac.hex(),
         timestamp,
         request.form["region"],
         bundle,
     )
 
-    rs = make_response(zipdata.getvalue())
-    zipdata.close()
-    rs.headers.add("Content-Disposition", "attachment", filename="LetterBomb.zip")
-    rs.headers["Content-Type"] = "application/zip"
-    return rs
+    #rs = make_response(zipdata.getvalue())
+    #zipdata.close()
+    #rs.headers.add("Content-Disposition", "attachment", filename="LetterBomb.zip")
+    #rs.headers["Content-Type"] = "application/zip"
+    #return rs
+    return _index("TODO: run wilbrand")
 
 
 application = app
