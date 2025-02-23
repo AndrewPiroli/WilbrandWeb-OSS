@@ -8,7 +8,7 @@ in `bundle/`.
 
 #### Differences
 
- This repo is shamelessly built off my Letterbomb fork that is running at https://letterbomb.andrewtech.net and
+ This repo is shamelessly built off [my Letterbomb fork](https://github.com/AndrewPiroli/letterbomb) that is running at https://letterbomb.andrewtech.net and
  so inherits that projects general ideas:
 
   * No captcha (Rate limiting in place of course)
