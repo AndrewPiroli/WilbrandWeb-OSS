@@ -1,5 +1,7 @@
 import os, zipfile, hashlib, hmac, struct, logging, random, json
 import urllib
+import subprocess
+import shutil
 from io import BytesIO
 from logging.handlers import SMTPHandler
 from datetime import datetime, timedelta
@@ -7,6 +9,8 @@ from flask import Flask, request, g, render_template, make_response, redirect, u
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from pathlib import Path
+from tempfile import mkdtemp
 
 COUNT_CACHE_AGE = 60
 counter_cache = (datetime(1999, 1, 1), -1)
@@ -22,7 +26,10 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-BUNDLEBASE = os.path.join(app.root_path, "bundle")
+ROOTDIR = Path(app.root_path)
+WILBRAND_EXE = ROOTDIR / "wilbrand"
+WILBRAND_WRITEDIR = ROOTDIR / "rw"
+BUNDLEBASE = ROOTDIR / "bundle"
 
 class RequestFormatter(logging.Formatter):
     def format(self, record):
@@ -71,6 +78,22 @@ def count_unique_wilbrands(path="./log/info.log"):
     counter_cache = (datetime.now(), res)
     return res
 
+def make_wilbrand_zip(our_dir, bundle):
+    zipbuf = BytesIO()
+    with zipfile.ZipFile(zipbuf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files, in os.walk(our_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, our_dir)
+                zf.write(file_path, arcname)
+        if bundle:
+            for root, _, files in os.walk(BUNDLEBASE):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, BUNDLEBASE)
+                    zf.write(file_path, arcname)
+    return zipbuf
+
 
 def _index(error=None):
     rs = make_response(
@@ -85,12 +108,9 @@ def _index(error=None):
 def index():
     return _index()
 
-from pprint import pprint
 @app.route("/haxx", methods=["POST"])
 @limiter.limit("3/minute")
 def haxx():
-    pprint(request.environ)
-    pprint(request.form)
     OUI_LIST = [
         bytes.fromhex(i)
         for i in open(os.path.join(app.root_path, "oui_list.txt")).read().split("\n")
@@ -126,7 +146,12 @@ def haxx():
         )
         return _index("The exploit will only work if you enter your Wii's MAC address.")
 
-
+    our_dir = mkdtemp(mac.hex(), None, WILBRAND_WRITEDIR)
+    wilbrand_res = subprocess.run([WILBRAND_EXE.absolute(), mac.hex(), f"{timestamp:x}", template, our_dir])
+    if wilbrand_res.returncode != 0:
+        return _index("FIXME: wilbrand returns {}".format(wilbrand_res.returncode))
+    zipdata = make_wilbrand_zip(our_dir, bundle)
+    shutil.rmtree(our_dir)
     app.logger.info(
         "Wilbranded %s at %d ver %s bundle %r",
         mac.hex(),
@@ -135,12 +160,10 @@ def haxx():
         bundle,
     )
 
-    #rs = make_response(zipdata.getvalue())
-    #zipdata.close()
-    #rs.headers.add("Content-Disposition", "attachment", filename="LetterBomb.zip")
-    #rs.headers["Content-Type"] = "application/zip"
-    #return rs
-    return _index("TODO: run wilbrand")
+    rs = make_response(zipdata.getvalue())
+    rs.headers.add("Content-Disposition", "attachment", filename="Wilbrand.zip")
+    rs.headers["Content-Type"] = "application/zip"
+    return rs
 
 
 application = app
