@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-	<title>LetterBomb</title>
+	<title>Wilbrand</title>
 	<link rel="stylesheet" type="text/css" href="/static/mac.css" />
 	<script type="text/javascript">
 		function keyHandler(e, obj, next) {
@@ -45,7 +45,7 @@
 </head>
 <body>
 <img src='/static/letterbomb_icon.png' style="margin-bottom: -30px;"/>
-<h1>LetterBomb</h1>
+<h1>Wilbrand</h1>
 <form method="POST" action="{{ url_for('haxx') }}">
 	<div>
 		<h2>System Menu Version</h2>
@@ -82,7 +82,7 @@
 	<p>
 		<input type='submit' value='Cut the red wire' id='submit_btn' class='button buttonr' disabled /> <input type='submit' value='Cut the blue wire' id='submit_btn2' class='button buttonb' disabled />
 	</p>
-	<p id="counter">LetterBombed so far: {{ num_lb }}</p>
+	<p id="counter">Wilbranded so far: {{ num_lb }}</p>
 	<p><a href="https://github.com/AndrewPiroli/WilbrandWeb-OSS">GPL source</a></p>
 </form>
 </body>
